@@ -56,12 +56,8 @@ def init():
 def load_model_text2mel(accent, speed):
     ## load model text2mel
     checkpoint_path = "./tacotron2_checkpoints/checkpoint_53000"
-    print(-1)
-    print(hparams)
     model_text2mel = load_model(hparams)
-    print(0)
     model_text2mel.load_state_dict(torch.load(checkpoint_path)['state_dict'])
-    print(1)
     _ = model_text2mel.cuda().eval().half()
     return model_text2mel
 def load_model_mel2audio():
