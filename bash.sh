@@ -8,6 +8,3 @@ wget -O tacotron2_checkpoints.zip https://studenthcmusedu-my.sharepoint.com/:u:/
 wget -O hifi-gan_checkpoints.zip https://studenthcmusedu-my.sharepoint.com/:u:/g/personal/1712786_student_hcmus_edu_vn/EY-UfGisD2VEqLxjabwqy60BJ9hGI0ByRIriaRvfrWC8qA?e=HVst2H\&download=1
 unzip tacotron2_checkpoints.zip
 unzip hifi-gan_checkpoints.zip
-
-# run demo
-streamlit run app.py

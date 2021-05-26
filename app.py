@@ -120,13 +120,12 @@ def infer_text2mel(model_text2mel, text):
 
     return mel_outputs_postnet
 
-def infer_mel2audio(model_text2mel, text):
+def infer_mel2audio(model_text2mel, mel):
     with torch.no_grad():
-        x = mel_outputs_postnet
-        if len(x.shape) < 3:  # for mel from vivos
-            x = x.unsqueeze(0) 
+        if len(mel.shape) < 3:  # for mel from vivos
+            mel = mel.unsqueeze(0) 
         start_time = time.time() 
-        y_g_hat = model_mel2audio(x)
+        y_g_hat = model_mel2audio(mel)
         print("--- mel2audio: %s seconds ---" % (time.time() - start_time))    
         audio = y_g_hat * MAX_WAV_VALUE
 
