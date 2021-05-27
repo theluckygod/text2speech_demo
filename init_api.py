@@ -1,5 +1,4 @@
 import yaml
-import streamlit as st
 
 import sys
 sys.path.append('./tacotron2/')
@@ -29,13 +28,11 @@ from inference_e2e import load_checkpoint
 
 import time
 
-@st.cache
 def load_conf():
     with open("config.yml", "r", encoding="utf-8") as ymlfile:
-        cfg = yaml.load(ymlfile)
+        cfg = yaml.load(ymlfile, yaml.Loader)
     return cfg
 
-@st.cache
 def init(cfg):
     print("\n--------------------------------------------------")
     print("initting...")
@@ -76,7 +73,6 @@ def load_model_mel2audio(cfg):
     denoiser = None
     return model_mel2audio, denoiser
 
-@st.cache
 def load_model(cfg):
     print("\n--------------------------------------------------")
     print("load model...")
@@ -133,7 +129,6 @@ def denoise_audio(denoiser, audio):
 
     return np.squeeze(data)
 
-@st.cache
 def inference(model_text2mel, model_mel2audio, denoiser, text, accent, speed, sampling_rate):
     print("\n--------------------------------------------------")
     print("inference...")

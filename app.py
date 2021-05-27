@@ -1,11 +1,14 @@
 import streamlit as st
-import SessionState
-
 from scipy.io.wavfile import write
+from requests import post
+import numpy as np
+import yaml
 
-from init_api import load_model, inference, load_conf
-
-
+@st.cache
+def load_conf():
+    with open("config.yml", "r", encoding="utf-8") as ymlfile:
+        cfg = yaml.load(ymlfile, yaml.Loader)
+    return cfg
 cfg = load_conf()
     
 # Side bar
@@ -37,20 +40,27 @@ sentence = st.text_area(label='Input your text here:',
                         value=default_value_text_area,
                         height=max_height_text_area) 
         
-
-
-model_text2mel, model_mel2audio, denoiser = load_model(cfg)
-session_state = SessionState.get(name='', _audio=None)
-
 if st.button("Generate"):
-    data = inference(model_text2mel, model_mel2audio, denoiser, sentence, accent, speed, sampling_rate)
-    # write array to file:
-    write(output_audio_path, sampling_rate, data)
-    print("Writing to " + output_audio_path)
-    session_state._audio = True
-    st.audio(output_audio_path, format='audio/wav')
-else:
-    if session_state._audio:
-        st.audio(output_audio_path, format='audio/wav')
+    data = {'text': sentence, 'accent': accent, 'speed': speed, 'sr': sampling_rate}
+    print("\n------------------------------------")
+    print(f"POST {data}")
+
+    is_reponse = False
+    try:
+        reponse = post('http://localhost:5000/inference', data=data).json()
+        is_reponse = True
+        print("_____Response____")
+    except:
+        print("_____No response____")
+
+    if is_reponse:
+        try:
+            # write array to file:
+            write(output_audio_path, reponse["sr"], np.array(reponse["data"], np.int16))
+            print("Writing to " + output_audio_path + " successfully")
+            st.audio(output_audio_path, format='audio/wav')
+        except:
+            print("Cannot write audio file!!!")
     else:
-        st.audio(default_audio_path, format='audio/wav')
+        st.text('No response from server.')
+        

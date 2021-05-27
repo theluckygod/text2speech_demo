@@ -3,6 +3,7 @@ from flask_restful import reqparse, abort, Api, Resource
 
 from init_api import load_model, inference, load_conf
 from scipy.io.wavfile import write
+import numpy as np
 
 app = Flask(__name__)
 api = Api(app)
@@ -44,10 +45,6 @@ parser.add_argument('sr', type=int, help='Sampling rate of speech')
 class Inference_e2e(Resource):
     def post(self):
         args = parser.parse_args()
-        print("args")
-        print(args)
-        print("request")
-        print(request.form)
         sentence, accent, speed, sampling_rate = args['text'], args['accent'], args['speed'], args['sr']
         abort_if_config_doesnt_exist(accent, speed, sampling_rate)
 
@@ -59,13 +56,13 @@ class Inference_e2e(Resource):
                             accent, 
                             speed, 
                             sampling_rate)
-            out_path = "output.wav"
-            write(out_path, sampling_rate, data)
         except:
             print("Fail to infer")
             return None, 403
 
-        return {"output": out_path}, 201
+        if isinstance(data, np.ndarray):
+            data = data.tolist()
+        return {"data": data, "sr": sampling_rate}, 201
 
 
 ##
