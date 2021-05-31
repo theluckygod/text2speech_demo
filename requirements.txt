@@ -13,3 +13,4 @@ tensorboard==1.15.0
 soundfile==0.10.3.post1
 numba==0.48
 streamlit
+pyyaml
