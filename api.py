@@ -1,89 +1,72 @@
-import os
-import sys
-import time
-import glob
-# sys.path.insert(0,'/home/ubuntu/TTS/text-to-speech/FastSpeech2')
-import threading
-from queue import Empty, Queue
-from pydub import AudioSegment
-from utils.text_breaker import breaker
-# from model_prediction import T2S_Runner
-from underthesea import sent_tokenize, word_tokenize
-from flask import Flask, redirect, url_for, request
-from torch.multiprocessing import Process,set_start_method, Pool
+from flask import Flask, request
+from flask_restful import reqparse, abort, Api, Resource
 
-from app import load_model, inference
+from init_api import load_model, inference, load_conf
+from scipy.io.wavfile import write
+import numpy as np
 
-# import scipy.io.wavfile.read as wavread
-set_start_method('spawn', force = True)
-# Add global config and variable
-BATCH_SIZE = 30
-BATCH_TIMEOUT = 0.01
-CHECK_INTERVAL = 0.01
-MAX_PROCESS = 2
-preprocess_config = "./config/LJSpeech/preprocess.yaml"
-model_config = './config/LJSpeech/model.yaml'
-train_config = './config/LJSpeech/train.yaml'
-restore_step = 900000
-requests_queue = Queue()
 app = Flask(__name__)
+api = Api(app)
 
-def handle_requests_by_batch_with_break_sentence():
-    """
-    This function is control and create batch of requests.
-    """
-    model = T2S_Runner(preprocess_config, model_config, train_config, restore_step)
-    while True:
-        requests_batch = []
-        while not (
-            len(requests_batch) > BATCH_SIZE or
-            (len(requests_batch) > 0 and time.time() - requests_batch[0]['time'] > BATCH_TIMEOUT)
-        ):
-            try:
-                requests_batch.append(requests_queue.get(timeout=CHECK_INTERVAL))
-            except Empty:
-                continue
-        texts = [request['input']['text'] for request in requests_batch]
-        texts_split = [breaker(t) for t in texts]
-        texts_split_len = [len(t) for t in texts_split]
-        texts = []
-        for t in texts_split:
-            texts.extend([i+" " for i in t])
-        IDs = []
-        speaker_ids = []
-        for request, l in zip (requests_batch, texts_split_len):
-            ids = ['%s_%s'%(request['time'],i) for i in range(l)]
-            IDs.extend(ids)
-            speaker_ids.extend([request['input']['speaker_id']]*l)
-        pitch_controls = requests_batch[0]['input']['pitch_control']
-        energy_controls = requests_batch[0]['input']['energy_control']
-        duration_controls = requests_batch[0]['input']['duration_control']
-        batch_outputs = model.batch_prediction(IDs, texts, speaker_ids, pitch_controls, energy_controls, duration_controls)
-        IDs = [request['time'] for request in requests_batch]
-        for id, request in zip(IDs,requests_batch):
-            files = sorted(glob.glob('./output/result/%s_*.wav'%id))
-            combined_sounds = AudioSegment.from_wav(files[0])
-            os.remove(files[0])
-            for file in files[1:]:
-                sound = AudioSegment.from_wav(file)
-                combined_sounds = combined_sounds + sound
-                os.remove(file)
-            combined_sounds.export('./output/result/%s.wav'%id, format="wav")
-            request['output'] = "GOOD"
+cfg = load_conf()
+ACCENTS = cfg["conf_values"]["accent"]
+ACCENTS_DEFAULT = cfg["conf_default"]["accent"]
+SPEED_VALUES = cfg["conf_values"]["speed"]
+SPEED_DEFAULT = cfg["conf_default"]["speed"]
+SAMPLING_RATE_VALUES =  cfg["conf_values"]["sampling_rate"]
+SAMPLING_RATE_DEFAULT = cfg["conf_default"]["sampling_rate"]
 
-threading.Thread(target=handle_requests_by_batch_with_break_sentence).start()
+model_text2mel, model_mel2audio, denoiser = load_model(cfg)
 
 
-@app.route('/predict', methods=['POST'])
-def predict():
-    crequest = {'input': request.json, 'time': time.time()}
-    requests_queue.put(crequest)
+def abort_if_config_doesnt_exist(accent, speed, sampling_rate):
+    check_accent, check_speed, check_sr = True, True, True
+    if accent not in ACCENTS:
+        check_accent = False
+    if speed not in SPEED_VALUES:
+        check_speed = False
+    if sampling_rate not in SAMPLING_RATE_VALUES:
+        check_sr = False    
 
-    while 'output' not in crequest:
-        time.sleep(CHECK_INTERVAL)
+    if check_accent == False or check_speed == False or check_sr == False:
+        abort(404, message="Config not match {}".format(
+            {"check_accent": check_accent, "check_speed": check_speed, "check_sr": check_sr}))
 
-    return {'predictions': crequest['output']}
+parser = reqparse.RequestParser()
+parser.add_argument('text', help='Text input')
+parser.add_argument('accent', help='Accent of speech')
+parser.add_argument('speed', help='Speech of speech')
+parser.add_argument('sr', type=int, help='Sampling rate of speech')
 
 
-if __name__ == "__main__":
-    app.run(debug = True)
+# Todo
+class Inference_e2e(Resource):
+    def post(self):
+        args = parser.parse_args()
+        sentence, accent, speed, sampling_rate = args['text'], args['accent'], args['speed'], args['sr']
+        abort_if_config_doesnt_exist(accent, speed, sampling_rate)
+
+        try:
+            data = inference(model_text2mel, 
+                            model_mel2audio, 
+                            denoiser, 
+                            sentence, 
+                            accent, 
+                            speed, 
+                            sampling_rate)
+        except:
+            print("Fail to infer")
+            return None, 403
+
+        if isinstance(data, np.ndarray):
+            data = data.tolist()
+        return {"data": data, "sr": sampling_rate}, 201
+
+
+##
+## Actually setup the Api resource routing here
+##
+api.add_resource(Inference_e2e, '/inference')
+
+if __name__ == '__main__':
+    app.run(debug=True, use_reloader=False)
