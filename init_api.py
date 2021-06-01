@@ -26,7 +26,20 @@ from meldataset import MAX_WAV_VALUE
 from models import Generator
 from inference_e2e import load_checkpoint
 
+from vinorm import TTSnorm
+from underthesea import sent_tokenize, dependency_parse
+
+
 import time
+
+silence_sign = {
+    '\n': 130,
+    '.': 60,
+    ',': 30,
+    '': 0
+}
+
+
 
 def load_conf():
     with open("config.yml", "r", encoding="utf-8") as ymlfile:
@@ -129,16 +142,86 @@ def denoise_audio(denoiser, audio):
 
     return np.squeeze(data)
 
+def paragraph_sementation(text):
+    text_list, silence_mark = split_sentence_with_character(text, "\n")
+    return text_list, ["\n"] + silence_mark
+    
+def norm_text(text_list):
+    for i in range(len(text_list)):
+        text_list[i] = TTSnorm(text_list[i], punc = False, unknown = False, lower = True, rule = False)
+    return text_list
+
+def split_sentence_with_character(text, character):
+    text_list = text.split(character)
+    selected_texts = []
+    for s in text_list:
+        if len(s) > 0:
+            selected_texts.append(s)
+    return selected_texts, [character] * (len(selected_texts) - 1)
+
+def sentence_segmentation(text_list, silence_mark):
+    selected_texts = []
+    si_mark = []
+    for i in range(len(text_list)):
+        t_texts = sent_tokenize(text_list[i])
+        t_mark = [silence_mark[i]] + ['.'] * (len(t_texts) - 1)
+
+        selected_texts = selected_texts + t_texts
+        si_mark = si_mark + t_mark
+    return selected_texts, si_mark
+
+def split_long_sentence(text_list, silence_mark):
+    # puntc ,
+    selected_texts = []
+    si_mark = []
+    for i in range(len(text_list)):
+        t_texts, t_mark = split_sentence_with_character(text_list[i], ',')
+        t_mark = [silence_mark[i]] + t_mark
+
+        selected_texts = selected_texts + t_texts
+        si_mark = si_mark + t_mark
+    return selected_texts, si_mark
+    
+def text_preprocessing(text):
+    # paragraph segmentation
+    text_list, silence_mark = paragraph_sementation(text)
+
+    # norm
+    text_list = norm_text(text_list)
+    
+    # sentence segmentation
+    text_list, silence_mark = sentence_segmentation(text_list, silence_mark)
+    
+    # split long sentance
+    text_list, silence_mark = split_long_sentence(text_list, silence_mark)
+    if len(silence_mark) > 0:
+        silence_mark[0] = ''
+    return text_list, silence_mark
+
 def inference(model_text2mel, model_mel2audio, denoiser, text, accent, speed, sampling_rate):
     print("\n--------------------------------------------------")
     print("inference...")
     print("input: " + text)
 
+    texts, si_mark = text_preprocessing(text)
+
     # TODO
     # Accent, speed, sampling_rate?
 
     # text2mel
-    mel = infer_text2mel(model_text2mel, text)
+    mel = None
+    for i in range(len(texts)):
+        if isinstance(mel, torch.Tensor):
+            temp_mel = infer_text2mel(model_text2mel, texts[i])
+            if si_mark[i] != '':
+                _si_mel = mel[:, :, -1].unsqueeze(-1)
+                _si_mel = _si_mel.repeat_interleave(silence_sign[si_mark[i]], dim=-1)
+                mel = torch.cat((mel, _si_mel, temp_mel), 2)
+            else:
+                mel = torch.cat((mel, temp_mel), 2)
+
+        else:
+            mel = infer_text2mel(model_text2mel, texts[i])
     # mel2audio
     audio = infer_mel2audio(model_mel2audio, mel)
     # denoise
