@@ -151,6 +151,28 @@ def norm_text(text_list):
         text_list[i] = TTSnorm(text_list[i], punc = False, unknown = False, lower = True, rule = False)
     return text_list
 
+def norm_begin_end_text(text_list, silence_mark):
+    selected_texts = []
+    si_mark = []
+    for i in range(len(text_list)):
+        text = text_list[i]
+        while True:
+            if len(text) > 0 and text[-1] in ['.', ',', ' ', '\n']:
+                text = text[:-1]
+            else:
+                break
+        while True:
+            if len(text) > 0 and text[0] in ['.', ',', ' ', '\n']:
+                text = text[1:]
+            else:
+                break
+        
+        if len(text) > 0:
+            text = text + '.'
+            selected_texts.append(text)
+            si_mark.append(silence_mark[i])
+    return selected_texts, si_mark
+
 def split_sentence_with_character(text, character):
     text_list = text.split(character)
     selected_texts = []
@@ -228,8 +250,13 @@ def text_preprocessing(cfg, text):
     
     # split long sentance
     text_list, silence_mark = split_long_sentence(cfg, text_list, silence_mark)
+
+    # re norm
+    text_list, silence_mark = norm_begin_end_text(text_list, silence_mark)
+    
     if len(silence_mark) > 0:
         silence_mark[0] = ''
+
     return text_list, silence_mark
 
 def inference(cfg, model_text2mel, model_mel2audio, denoiser, text, accent, speed, sampling_rate):
@@ -237,29 +264,32 @@ def inference(cfg, model_text2mel, model_mel2audio, denoiser, text, accent, spee
     print("inference...")
     print("input: " + text)
 
+    start_time = time.time() 
     texts, si_mark = text_preprocessing(cfg, text)
+    print("--- preprocessing: %s seconds ---" % (time.time() - start_time))      
 
     # TODO
     # Accent, speed, sampling_rate?
 
     # text2mel
-    mel = None
+    audio = None
     for i in range(len(texts)):
-        print(f"text2mel: {texts[i]}")
+        print(f"text: {texts[i]}")
+        mel = infer_text2mel(model_text2mel, texts[i])
 
-        if isinstance(mel, torch.Tensor):
-            temp_mel = infer_text2mel(model_text2mel, texts[i])
+        # mel2audio
+        if isinstance(audio, torch.Tensor):
+            temp_audio = infer_mel2audio(model_mel2audio, mel)
             if si_mark[i] != '':
-                _si_mel = mel[:, :, -1].unsqueeze(-1)
-                _si_mel = _si_mel.repeat_interleave(silence_sign[si_mark[i]], dim=-1)
-                mel = torch.cat((mel, _si_mel, temp_mel), 2)
+                _si_audio = audio[:, :, -1].unsqueeze(-1)
+                _si_audio = _si_audio.repeat_interleave(silence_sign[si_mark[i]] * 256, dim=-1)
+                audio = torch.cat((audio, _si_audio, temp_audio), 2)
             else:
-                mel = torch.cat((mel, temp_mel), 2)
+                audio = torch.cat((audio, temp_audio), 2)
 
         else:
-            mel = infer_text2mel(model_text2mel, texts[i])
-    # mel2audio
-    audio = infer_mel2audio(model_mel2audio, mel)
+            audio = infer_mel2audio(model_mel2audio, mel)
+
     # denoise
     audio = denoise_audio(denoiser, audio)
     return audio
