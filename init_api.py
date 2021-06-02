@@ -28,7 +28,7 @@ from inference_e2e import load_checkpoint
 
 from vinorm import TTSnorm
 from underthesea import sent_tokenize, dependency_parse
-
+import math
 
 import time
 
@@ -170,7 +170,18 @@ def sentence_segmentation(text_list, silence_mark):
         si_mark = si_mark + t_mark
     return selected_texts, si_mark
 
-def split_long_sentence(text_list, silence_mark):
+def segment_sentence(text, factor):
+    tokens = dependency_parse(text)
+    sentence = [token[0] for token in tokens]
+
+    s = ''
+    for i in range(factor):
+        if i > 0:
+            s += ', '
+        s += ' '.join(sentence[int(len(sentence) / factor) * i:int(len(sentence) / factor) * (i + 1)])
+    return s
+
+def split_long_sentence(cfg, text_list, silence_mark):
     # puntc ,
     selected_texts = []
     si_mark = []
@@ -180,9 +191,32 @@ def split_long_sentence(text_list, silence_mark):
 
         selected_texts = selected_texts + t_texts
         si_mark = si_mark + t_mark
+
+    text_list = selected_texts
+    silence_mark = si_mark
+    selected_texts = []
+    si_mark = []
+    max_len = cfg["conf_model"]["text_preprocessing"]["max_len_sentence"]
+
+    for i in range(len(text_list)):
+        if len(text_list[i]) > max_len:
+            factor = math.ceil(len(text_list[i]) / max_len)
+
+            segmented_sentence = segment_sentence(text_list[i], factor)
+
+            t_texts, t_mark = split_sentence_with_character(segmented_sentence, ',')
+            t_mark = [silence_mark[i]] + t_mark
+
+            selected_texts = selected_texts + t_texts
+            si_mark = si_mark + t_mark
+        else:
+            selected_texts.append(text_list[i])
+            si_mark.append(silence_mark[i])
+
+    dependency_parse
     return selected_texts, si_mark
     
-def text_preprocessing(text):
+def text_preprocessing(cfg, text):
     # paragraph segmentation
     text_list, silence_mark = paragraph_sementation(text)
 
@@ -193,17 +227,17 @@ def text_preprocessing(text):
     text_list, silence_mark = sentence_segmentation(text_list, silence_mark)
     
     # split long sentance
-    text_list, silence_mark = split_long_sentence(text_list, silence_mark)
+    text_list, silence_mark = split_long_sentence(cfg, text_list, silence_mark)
     if len(silence_mark) > 0:
         silence_mark[0] = ''
     return text_list, silence_mark
 
-def inference(model_text2mel, model_mel2audio, denoiser, text, accent, speed, sampling_rate):
+def inference(cfg, model_text2mel, model_mel2audio, denoiser, text, accent, speed, sampling_rate):
     print("\n--------------------------------------------------")
     print("inference...")
     print("input: " + text)
 
-    texts, si_mark = text_preprocessing(text)
+    texts, si_mark = text_preprocessing(cfg, text)
 
     # TODO
     # Accent, speed, sampling_rate?
@@ -211,6 +245,8 @@ def inference(model_text2mel, model_mel2audio, denoiser, text, accent, speed, sa
     # text2mel
     mel = None
     for i in range(len(texts)):
+        print(f"text2mel: {texts[i]}")
+
         if isinstance(mel, torch.Tensor):
             temp_mel = infer_text2mel(model_text2mel, texts[i])
             if si_mark[i] != '':

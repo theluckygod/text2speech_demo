@@ -73,7 +73,8 @@ def handle_requests():
             sampling_rate = sampling_rates[0]
             request = requests_batch[0]
 
-            data = inference(model_text2mel, 
+            data = inference(cfg, 
+                            model_text2mel, 
                             model_mel2audio, 
                             denoiser, 
                             sentence, 

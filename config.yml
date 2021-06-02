@@ -23,6 +23,8 @@ conf_model:
     hifi-gan: 
         checkpoint: ./hifi-gan_checkpoints/g_02520000
         config: ./hifi-gan_checkpoints/config.json
+    text_preprocessing:
+        max_len_sentence: 140
 
 conf_st_app:
     default_value_text_area: Đây là tiếng nói Việt Nam phát thanh từ Hà Nội thủ đô nước Cộng hòa Xã hội Chủ nghĩa Việt Nam.
