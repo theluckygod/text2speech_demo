@@ -20,7 +20,7 @@ We use two pretrained models:
 
 ## Quick Start <a name="quickstart"></a>
 
-[Open in Colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing)
+[Open in Colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing) or [Quick demo](https://colab.research.google.com/drive/1m-qkD2iQmv9o7gz5Fxx2Ok46okhGLjJQ?usp=sharing)
 
 ## Run demo <a name="demo"></a>
 
