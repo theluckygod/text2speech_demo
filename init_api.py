@@ -241,15 +241,15 @@ def split_long_sentence(cfg, text_list, silence_mark):
 def text_preprocessing(cfg, text):
     # paragraph segmentation
     text_list, silence_mark = paragraph_sementation(text)
-
-    # norm
-    text_list = norm_text(text_list)
     
     # sentence segmentation
     text_list, silence_mark = sentence_segmentation(text_list, silence_mark)
     
     # split long sentance
     text_list, silence_mark = split_long_sentence(cfg, text_list, silence_mark)
+
+    # norm
+    text_list = norm_text(text_list)
 
     # re norm
     text_list, silence_mark = norm_begin_end_text(text_list, silence_mark)
