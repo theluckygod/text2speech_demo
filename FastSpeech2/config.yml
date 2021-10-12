@@ -1,0 +1,30 @@
+conf_nof_speaker:
+    fastspeech2: 56
+    tacotron2: 46
+    glowtts: 46
+
+conf_values:
+    speed:
+        - Slow 
+        - Normal 
+        - Fast
+
+conf_default:
+    speed: Normal
+
+conf_model:
+    tacotron2: 
+        checkpoint: ./tacotron2_checkpoints/checkpoint_53000
+    fastspeech2: 
+        checkpoint: ./FastSpeech2/ckpt/100000.pth.tar
+    hifi-gan: 
+        checkpoint: ./hifi-gan_checkpoints/g_02520000
+        config: ./hifi-gan_checkpoints/config.json
+    text_preprocessing:
+        max_len_sentence: 140
+
+conf_st_app:
+    default_value_text_area: Đây là mô hình chuyển văn bản thành giọng nói cho tiếng Việt
+    max_height_text_area : None
+    output_audio_path: output/output.wav
+    default_audio_path: output/default.wav
