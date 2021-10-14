@@ -1,22 +1,9 @@
-from flask import Flask, request
-from flask_restful import reqparse, abort, Api, Resource
-
-from init_api import load_model, inference, load_conf
 from scipy.io.wavfile import write
 import numpy as np
 
 import time
 import threading
 from queue import Empty, Queue
-
-args = {
-    'restore_step': 100000,
-    'preprocess_config': './FastSpeech2/config/my_data/preprocess.yaml',
-    'model_config': './FastSpeech2/config/my_data/model.yaml',
-    'train_config': './FastSpeech2/config/my_data/train.yaml',
-    'pitch_control': 1.0,
-    'energy_control': 1.0
-}
 
 BATCH_SIZE = 1
 BATCH_TIMEOUT = 0.01
@@ -26,33 +13,7 @@ requests_queue = Queue()
 app = Flask(__name__)
 api = Api(app)
 
-cfg = load_conf()
-SPEAKERS = list(range(cfg['conf_nof_speaker']['fastspeech2']))
-SPEAKER_DEFAULT = 0
-SPEED_VALUES = cfg["conf_values"]["speed"]
-SPEED_DEFAULT = cfg["conf_default"]["speed"]
-SAMPLING_RATE_VALUES =  cfg["conf_values"]["sampling_rate"]
-SAMPLING_RATE_DEFAULT = cfg["conf_default"]["sampling_rate"]
-
-#model_text2mel, model_mel2audio, denoiser = load_model(cfg)
-model_text2mel, model_mel2audio, configs = prepare_model(args)
-
-def abort_if_config_doesnt_exist(speaker, speed, sampling_rate):
-    check_speaker, check_speed, check_sr = True, True, True
-    if speaker not in SPEAKERS:
-        check_speaker = False
-    if speed not in SPEED_VALUES:
-        check_speed = False
-    if sampling_rate not in SAMPLING_RATE_VALUES:
-        check_sr = False    
-
-    if check_speaker == False or check_speed == False or check_sr == False:
-        abort(404, message="Config not match {}".format(
-            {"check_speaker": check_speaker, "check_speed": check_speed, "check_sr": check_sr}))
-
-parser = reqparse.RequestParser()
-parser.add_argument('text', help='Text input')
-parser.add_argument('speaker_id', help='Speaker of speech')
+	@@ -38,30 +47,68 @@ def abort_if_config_doesnt_exist(accent, speed, sampling_rate):
 parser.add_argument('speed', help='Speech of speech')
 parser.add_argument('sr', type=int, help='Sampling rate of speech')
 
@@ -71,24 +32,22 @@ def handle_requests():
             except Empty:
                 continue
         texts = [request['input']['text'] for request in requests_batch]
-        speakers = [request['input']['speaker_id'] for request in requests_batch]
+        accents = [request['input']['accent'] for request in requests_batch]
         speeds = [request['input']['speed'] for request in requests_batch]
         sampling_rates = [request['input']['sr'] for request in requests_batch]
 
         try:
             sentence = texts[0]
-            speaker = speaker[0]
+            accent = accents[0]
             speed = speeds[0]
             sampling_rate = sampling_rates[0]
             request = requests_batch[0]
 
-            data = inference(cfg,
-                            configs[0] 
-                            model_text2mel, 
+            data = inference(model_text2mel, 
                             model_mel2audio, 
                             denoiser, 
                             sentence, 
-                            speaker, 
+                            accent, 
                             speed, 
                             sampling_rate)
             request['output'] = data
@@ -103,8 +62,8 @@ threading.Thread(target=handle_requests).start()
 class Inference_e2e(Resource):
     def post(self):
         args = parser.parse_args()
-        sentence, speaker, speed, sampling_rate = args['text'], args['speaker_id'], args['speed'], args['sr']
-        abort_if_config_doesnt_exist(speaker, speed, sampling_rate)
+        sentence, accent, speed, sampling_rate = args['text'], args['accent'], args['speed'], args['sr']
+        abort_if_config_doesnt_exist(accent, speed, sampling_rate)
 
         crequest = {'input': args, 'time': time.time()}
 
@@ -117,14 +76,9 @@ class Inference_e2e(Resource):
 
         if not isinstance(data, np.ndarray):
             return {"data": None, "sr": sampling_rate}, 403 # Fail to infer
-            
+
         data = data.tolist()
         return {"data": data, "sr": sampling_rate}, 201 # infer successfully
 
 ##
 ## Actually setup the Api resource routing here
-##
-api.add_resource(Inference_e2e, '/inference')
-
-if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False)
