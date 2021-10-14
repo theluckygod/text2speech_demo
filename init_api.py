@@ -7,13 +7,20 @@ sys.path.append('./hifi-gan/')
 
 import numpy as np
 import torch
+import re
+from string import punctuation
+
+from underthesea.pipeline.word_tokenize import model
+from g2p_en import G2p
+from pypinyin import pinyin, Style
+from viphoneme import vi2IPA_split
 
 #from hparams import create_hparams
 #from model import Tacotron2
 #from layers import TacotronSTFT, STFT
 from audio_processing import griffin_lim
 #from train import load_model as _load_model
-from text import text_to_sequence
+from FastSpeech2.text import text_to_sequence, my_viphoneme
 
 import glob
 import os
@@ -28,6 +35,7 @@ from models import Generator
 from inference_e2e import load_checkpoint
 
 from utils.model import get_model, get_vocoder
+from utils.tools import to_device
 
 from vinorm import TTSnorm
 from underthesea import sent_tokenize, dependency_parse
@@ -69,10 +77,10 @@ def init(cfg):
 def prepare_model(args):
     # Read Config
     preprocess_config = yaml.load(
-        open(args['preprocess_config'], "r"), Loader=yaml.Loader
+        open(args['preprocess_config'], "r"), Loader=yaml.FullLoader
     )
-    model_config = yaml.load(open(args['model_config'], "r"), Loader=yaml.Loader)
-    train_config = yaml.load(open(args['train_config'], "r"), Loader=yaml.Loader)
+    model_config = yaml.load(open(args['model_config'], "r"), Loader=yaml.FullLoader)
+    train_config = yaml.load(open(args['train_config'], "r"), Loader=yaml.FullLoader)
     configs = (preprocess_config, model_config, train_config)
 
     # Get model
@@ -144,6 +152,10 @@ def infer_text2mel(model_text2mel, speaker, sequence, src_lens, max_src_len, con
 
     # text2mel
     start_time = time.time()
+    speaker = to_device(speaker, device)
+    sequence = to_device(sequence, device) 
+    src_lens = to_device(src_lens, device)
+    max_src_len = to_device(max_src_len, device)
     with torch.no_grad():
       output = model_text2mel(
             speaker, 
@@ -317,7 +329,7 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
     for sub_text in text_list:
       sub_text = sub_text.rstrip(punctuation)
 
-      g2p = my_viphoneme.get_cleaned_viphoneme_list
+      g2p = lambda s: my_viphoneme.get_my_viphoneme_list(my_viphoneme.get_cleaned_viphoneme_list(s))
       phones = []
       words = re.split(r"([,;.\-\?\!\s+])", sub_text)
       for w in words:
@@ -334,7 +346,7 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
               phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
           )
       )
-      selected_sequences.append(sequence)
+      selected_sequences.append(np.array([sequence]))
 
     return selected_sequences, si_mark
 
@@ -349,12 +361,14 @@ def inference(cfg, preprocess_config, model_text2mel, model_mel2audio, denoiser,
 
     # TODO
     # Accent, speed, sampling_rate?
+    flt_speed = {'Normal': 1.0, 'Slow': 1.5, 'Fast': 0.7}
+    speed = flt_speed[speed]
 
     # text2mel
     audio = None
     control_values = args['pitch_control'], args['energy_control'], speed
     for i in range(len(sequences)):
-        print(f"text: {texts[i]}")
+        #print(f"text: {texts[i]}")
         sequence_lens = np.array([len(sequences[i][0])])
         mel = infer_text2mel(model_text2mel, speaker, sequences[i], sequence_lens, max(sequence_lens), control_values)
 
