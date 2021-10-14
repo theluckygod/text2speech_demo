@@ -39,7 +39,7 @@ model_text2mel, model_mel2audio, configs = prepare_model(args)
 
 def abort_if_config_doesnt_exist(speaker, speed, sampling_rate):
     check_speaker, check_speed, check_sr = True, True, True
-    if speaker not in SPEAKERS:
+    if int(speaker) not in SPEAKERS:
         check_speaker = False
     if speed not in SPEED_VALUES:
         check_speed = False
@@ -74,10 +74,9 @@ def handle_requests():
         speakers = [request['input']['speaker_id'] for request in requests_batch]
         speeds = [request['input']['speed'] for request in requests_batch]
         sampling_rates = [request['input']['sr'] for request in requests_batch]
-
         try:
             sentence = texts[0]
-            speaker = speaker[0]
+            speaker = int(speakers[0])
             speed = speeds[0]
             sampling_rate = sampling_rates[0]
             request = requests_batch[0]
@@ -95,6 +94,23 @@ def handle_requests():
         except:
             request['output'] = "Fail"
             continue
+        
+#         sentence = texts[0]
+#         speaker = int(speakers[0])
+#         speed = speeds[0]
+#         sampling_rate = sampling_rates[0]
+#         request = requests_batch[0]
+
+#         data = inference(cfg,
+#                         configs[0],
+#                         model_text2mel, 
+#                         model_mel2audio, 
+#                         None, 
+#                         sentence, 
+#                         speaker, 
+#                         speed, 
+#                         sampling_rate)
+#         request['output'] = data
 
 threading.Thread(target=handle_requests).start()
 
