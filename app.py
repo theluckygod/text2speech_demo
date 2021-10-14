@@ -4,6 +4,7 @@ from requests import post
 import numpy as np
 import yaml
 
+
 @st.cache
 def load_conf():
     with open("config.yml", "r", encoding="utf-8") as ymlfile:
@@ -11,11 +12,16 @@ def load_conf():
     return cfg
 cfg = load_conf()
     
+# # Side bar
+# st.sidebar.subheader('Accent')
+# accent_values = cfg["conf_values"]["accent"]
+# accent_default = cfg["conf_default"]["accent"]
+# accent = st.sidebar.selectbox('', accent_values, index=accent_values.index(accent_default))
+
 # Side bar
-st.sidebar.subheader('Accent')
-accent_values = cfg["conf_values"]["accent"]
-accent_default = cfg["conf_default"]["accent"]
-accent = st.sidebar.selectbox('', accent_values, index=accent_values.index(accent_default))
+st.sidebar.subheader('Speaker')
+speaker_values = list(range(cfg['conf_nof_speaker']['fastspeech2']))
+speaker_id = st.sidebar.selectbox('', speaker_values, index=0)
         
 st.sidebar.subheader('Speed')
 speed_values = cfg["conf_values"]["speed"]
@@ -38,10 +44,10 @@ st.title("Text to speech")
 
 sentence = st.text_area(label='Input your text here:',
                         value=default_value_text_area,
-                        height=max_height_text_area) 
+                        height=max_height_text_area)
         
 if st.button("Generate"):
-    data = {'text': sentence, 'accent': accent, 'speed': speed, 'sr': sampling_rate}
+    data = {'text': sentence, 'speaker_id': speaker_id, 'speed': speed, 'sr': sampling_rate}
     print("\n------------------------------------")
     print(f"POST {data}")
 
