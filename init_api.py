@@ -2,6 +2,7 @@ import yaml
 
 import sys
 sys.path.append('./tacotron2/')
+sys.path.append('./FastSpeech2/')
 sys.path.append('./hifi-gan/')
 
 import numpy as np
@@ -39,7 +40,14 @@ silence_sign = {
     '': 0
 }
 
-
+args = {
+    'restore_step': 100000,
+    'preprocess_config': './config/my_data/preprocess.yaml',
+    'model_config': './config/my_data/model.yaml',
+    'train_config': './config/my_data/train.yaml',
+    'pitch_control': 1.0,
+    'energy_control': 1.0
+}
 
 def load_conf():
     with open("config.yml", "r", encoding="utf-8") as ymlfile:
@@ -53,9 +61,26 @@ def init(cfg):
     hparams.sampling_rate = cfg["conf_default"]["sampling_rate"]
     print(hparams.n_symbols)
     return hparams
+
+def prepare_model(args):
+    # Read Config
+    preprocess_config = yaml.load(
+        open(args['preprocess_config'], "r"), Loader=yaml.FullLoader
+    )
+    model_config = yaml.load(open(args['model_config'], "r"), Loader=yaml.FullLoader)
+    train_config = yaml.load(open(args['train_config'], "r"), Loader=yaml.FullLoader)
+    configs = (preprocess_config, model_config, train_config)
+
+    # Get model
+    model = get_model(args['restore_step'], configs, device, train=False)
+    # Load vocoder
+    vocoder = get_vocoder(model_config, device)
+
+    return model, vocoder, configs
+
 def load_model_text2mel(cfg):
     ## load model text2mel
-    checkpoint_path = cfg["conf_model"]["tacotron2"]["checkpoint"]
+    checkpoint_path = cfg["conf_model"]["fastspeech2"]["checkpoint"]
     hparams = init(cfg)
     model_text2mel = _load_model(hparams)
     model_text2mel.load_state_dict(torch.load(checkpoint_path)['state_dict'])
@@ -237,7 +262,18 @@ def split_long_sentence(cfg, text_list, silence_mark):
 
     dependency_parse
     return selected_texts, si_mark
-    
+
+def read_lexicon(lex_path):
+    lexicon = {}
+    with open(lex_path) as f:
+        for line in f:
+            temp = re.split(r"\s+", line.strip("\n"))
+            word = temp[0]
+            phones = temp[1:]
+            if word.lower() not in lexicon:
+                lexicon[word.lower()] = phones
+    return lexicon
+
 def text_preprocessing(cfg, text):
     # paragraph segmentation
     text_list, silence_mark = paragraph_sementation(text)
@@ -258,6 +294,37 @@ def text_preprocessing(cfg, text):
         silence_mark[0] = ''
 
     return text_list, silence_mark
+
+def preprocess_vietnamese(text, preprocess_config, cfg):
+    
+    lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
+    text_list, si_mark = text_preprocessing(cfg, text)
+    selected_sequences = []
+    for sub_text in text_list:
+      sub_text = sub_text.rstrip(punctuation)
+
+      g2p = my_viphoneme.get_cleaned_viphoneme_list
+      phones = []
+      words = re.split(r"([,;.\-\?\!\s+])", sub_text)
+      for w in words:
+          if w.lower() in lexicon:
+              phones += lexicon[w.lower()]
+          else:
+              phones += list(filter(lambda p: p != "", g2p(w)))
+      phones = "{" + "}{".join(phones) + "}"
+      phones = re.sub(r"\{[^\w\s]?\}", "{sp}", phones)
+      phones = phones.replace("}{", " ")
+
+      #print("Raw Text Sequence: {}".format(text))
+      #print("Phoneme Sequence: {}".format(phones))
+      sequence = np.array(
+          text_to_sequence(
+              phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
+          )
+      )
+      selected_sequences.append(sequence)
+
+    return selected_sequences, si_mark
 
 def inference(cfg, model_text2mel, model_mel2audio, denoiser, text, accent, speed, sampling_rate):
     print("\n--------------------------------------------------")
