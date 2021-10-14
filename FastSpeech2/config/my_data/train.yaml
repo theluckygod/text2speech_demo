@@ -1,5 +1,5 @@
 path:
-  ckpt_path: "/content/drive/MyDrive/Colab Notebooks/VLSP/FastSpeech2/ckpt"
+  ckpt_path: "./FastSpeech2/ckpt"
   log_path: "./FastSpeech2/output/log/my_data"
   result_path: "./FastSpeech2/results"
 optimizer:
