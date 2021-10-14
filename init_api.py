@@ -152,10 +152,10 @@ def infer_text2mel(model_text2mel, speaker, sequence, src_lens, max_src_len, con
 
     # text2mel
     start_time = time.time()
-    speaker = to_device(speaker, device)
-    sequence = to_device(sequence, device) 
-    src_lens = to_device(src_lens, device)
-    max_src_len = to_device(max_src_len, device)
+    speaker = torch.from_numpy(np.array([speaker])).long().to(device)
+    sequence = sequence.long().to(device)
+    src_lens = torch.from_numpy(src_lens).to(device)
+    #max_src_len = to_device(max_src_len, device)
     with torch.no_grad():
       output = model_text2mel(
             speaker, 
@@ -371,9 +371,10 @@ def inference(cfg, preprocess_config, model_text2mel, model_mel2audio, denoiser,
         #print(f"text: {texts[i]}")
         sequence_lens = np.array([len(sequences[i][0])])
         mel = infer_text2mel(model_text2mel, speaker, sequences[i], sequence_lens, max(sequence_lens), control_values)
-
+        mel = mel.permute(0,2,1)
         # mel2audio
         if isinstance(audio, torch.Tensor):
+            #print(mel.shape)
             temp_audio = infer_mel2audio(model_mel2audio, mel)
             if si_mark[i] != '':
                 _si_audio = audio[:, :, -1].unsqueeze(-1)
