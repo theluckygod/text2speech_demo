@@ -63,7 +63,7 @@ def get_vocoder(config, device):
         if speaker == "LJSpeech":
             ckpt = torch.load("./FastSpeech2/hifigan/generator_LJSpeech.pth.tar")
         elif speaker == "universal":
-            ckpt = torch.load("/content/drive/MyDrive/Colab Notebooks/VLSP/FastSpeech2/hifigan/generator_universal.pth.tar")
+            ckpt = torch.load("./FastSpeech2/hifigan/generator_universal.pth.tar")
         vocoder.load_state_dict(ckpt["generator"])
         vocoder.eval()
         vocoder.remove_weight_norm()
