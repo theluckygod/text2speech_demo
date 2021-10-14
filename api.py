@@ -9,6 +9,15 @@ import time
 import threading
 from queue import Empty, Queue
 
+args = {
+    'restore_step': 100000,
+    'preprocess_config': './FastSpeech2/config/my_data/preprocess.yaml',
+    'model_config': './FastSpeech2/config/my_data/model.yaml',
+    'train_config': './FastSpeech2/config/my_data/train.yaml',
+    'pitch_control': 1.0,
+    'energy_control': 1.0
+}
+
 BATCH_SIZE = 1
 BATCH_TIMEOUT = 0.01
 CHECK_INTERVAL = 0.01
@@ -18,32 +27,32 @@ app = Flask(__name__)
 api = Api(app)
 
 cfg = load_conf()
-ACCENTS = cfg["conf_values"]["accent"]
-ACCENTS_DEFAULT = cfg["conf_default"]["accent"]
+SPEAKERS = list(range(cfg['conf_nof_speaker']['fastspeech2']))
+SPEAKER_DEFAULT = 0
 SPEED_VALUES = cfg["conf_values"]["speed"]
 SPEED_DEFAULT = cfg["conf_default"]["speed"]
 SAMPLING_RATE_VALUES =  cfg["conf_values"]["sampling_rate"]
 SAMPLING_RATE_DEFAULT = cfg["conf_default"]["sampling_rate"]
 
-model_text2mel, model_mel2audio, denoiser = load_model(cfg)
+#model_text2mel, model_mel2audio, denoiser = load_model(cfg)
+model_text2mel, model_mel2audio, configs = prepare_model(args)
 
-
-def abort_if_config_doesnt_exist(accent, speed, sampling_rate):
-    check_accent, check_speed, check_sr = True, True, True
-    if accent not in ACCENTS:
-        check_accent = False
+def abort_if_config_doesnt_exist(speaker, speed, sampling_rate):
+    check_speaker, check_speed, check_sr = True, True, True
+    if speaker not in SPEAKERS:
+        check_speaker = False
     if speed not in SPEED_VALUES:
         check_speed = False
     if sampling_rate not in SAMPLING_RATE_VALUES:
         check_sr = False    
 
-    if check_accent == False or check_speed == False or check_sr == False:
+    if check_speaker == False or check_speed == False or check_sr == False:
         abort(404, message="Config not match {}".format(
-            {"check_accent": check_accent, "check_speed": check_speed, "check_sr": check_sr}))
+            {"check_speaker": check_speaker, "check_speed": check_speed, "check_sr": check_sr}))
 
 parser = reqparse.RequestParser()
 parser.add_argument('text', help='Text input')
-parser.add_argument('accent', help='Accent of speech')
+parser.add_argument('speaker_id', help='Speaker of speech')
 parser.add_argument('speed', help='Speech of speech')
 parser.add_argument('sr', type=int, help='Sampling rate of speech')
 
@@ -62,23 +71,24 @@ def handle_requests():
             except Empty:
                 continue
         texts = [request['input']['text'] for request in requests_batch]
-        accents = [request['input']['accent'] for request in requests_batch]
+        speakers = [request['input']['speaker_id'] for request in requests_batch]
         speeds = [request['input']['speed'] for request in requests_batch]
         sampling_rates = [request['input']['sr'] for request in requests_batch]
 
         try:
             sentence = texts[0]
-            accent = accents[0]
+            speaker = speaker[0]
             speed = speeds[0]
             sampling_rate = sampling_rates[0]
             request = requests_batch[0]
 
-            data = inference(cfg, 
+            data = inference(cfg,
+                            configs[0] 
                             model_text2mel, 
                             model_mel2audio, 
                             denoiser, 
                             sentence, 
-                            accent, 
+                            speaker, 
                             speed, 
                             sampling_rate)
             request['output'] = data
@@ -93,8 +103,8 @@ threading.Thread(target=handle_requests).start()
 class Inference_e2e(Resource):
     def post(self):
         args = parser.parse_args()
-        sentence, accent, speed, sampling_rate = args['text'], args['accent'], args['speed'], args['sr']
-        abort_if_config_doesnt_exist(accent, speed, sampling_rate)
+        sentence, speaker, speed, sampling_rate = args['text'], args['speaker_id'], args['speed'], args['sr']
+        abort_if_config_doesnt_exist(speaker, speed, sampling_rate)
 
         crequest = {'input': args, 'time': time.time()}
 
