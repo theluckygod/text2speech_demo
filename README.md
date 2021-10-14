@@ -10,17 +10,17 @@
 
 ## Introduction <a name="introduction"></a>
 
-This repo demo text to speech with streamlit (FastSpeech2 + hifi-gan) or [colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing#scrollTo=HCszbfi1JIoE)
+This repo demo text to speech with streamlit (FastSpeech2 + hifi-gan) or [colab](https://colab.research.google.com/drive/1jAEHOeO3TcWtoVFQ7HbXmCiqAsgQHLOu?usp=sharing)
 
 ## Pretrain models <a name="models"></a>
 We use two pretrained models:
     
-1. [Tacotron2](https://studenthcmusedu-my.sharepoint.com/:u:/g/personal/1712786_student_hcmus_edu_vn/EdygQSs8Gh1PjRR1cGOfw1MBD8AOeJjtm8nSArg_Hr4tGA?e=PxN9q6\&download=1): a acoustic model
-2. [Hifi-Gan](https://studenthcmusedu-my.sharepoint.com/:u:/g/personal/1712786_student_hcmus_edu_vn/EY-UfGisD2VEqLxjabwqy60BJ9hGI0ByRIriaRvfrWC8qA?e=HVst2H\&download=1): a vocoder model
+1. [FastSpeech2](https://studenthcmusedu-my.sharepoint.com/:u:/g/personal/1712791_student_hcmus_edu_vn/Eddrt4TbzZBNmmsDmUTsx1cBKl83DN7gC1sRlo45TLvKtg?e=jjaFwi\&download=1): a acoustic model
+2. [Hifi-Gan](https://studenthcmusedu-my.sharepoint.com/:u:/g/personal/1712791_student_hcmus_edu_vn/Ec_tC7hVcFVJlTgOfXYDkjEBuvm_f4BhqEwtQc70k0hCHQ?e=Sn5p4g\&download=1): a vocoder model
 
 ## Quick Start <a name="quickstart"></a>
 
-[Open in Colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing#scrollTo=HCszbfi1JIoE) or [Quick demo](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing#scrollTo=HCszbfi1JIoE)
+[Open in Colab](https://colab.research.google.com/drive/1jAEHOeO3TcWtoVFQ7HbXmCiqAsgQHLOu?usp=sharing) or [Quick demo](https://colab.research.google.com/drive/1jAEHOeO3TcWtoVFQ7HbXmCiqAsgQHLOu?usp=sharing)
 
 ## Run demo <a name="demo"></a>
 
