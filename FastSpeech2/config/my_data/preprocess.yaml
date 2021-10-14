@@ -2,7 +2,7 @@ dataset: "my_data"
 
 path:
   corpus_path: "../my_data"
-  lexicon_path: "lexicon/my_data-lexicon.txt"
+  lexicon_path: "./FastSpeech2/lexicon/my_data-lexicon.txt"
   raw_path: "../my_data/train"
   preprocessed_path: "./FastSpeech2/preprocessed_data/my_data"
 

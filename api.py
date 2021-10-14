@@ -74,43 +74,43 @@ def handle_requests():
         speakers = [request['input']['speaker_id'] for request in requests_batch]
         speeds = [request['input']['speed'] for request in requests_batch]
         sampling_rates = [request['input']['sr'] for request in requests_batch]
-        try:
-            sentence = texts[0]
-            speaker = int(speakers[0])
-            speed = speeds[0]
-            sampling_rate = sampling_rates[0]
-            request = requests_batch[0]
+        # try:
+        #     sentence = texts[0]
+        #     speaker = int(speakers[0])
+        #     speed = speeds[0]
+        #     sampling_rate = sampling_rates[0]
+        #     request = requests_batch[0]
 
-            data = inference(cfg,
-                            configs[0],
-                            model_text2mel, 
-                            model_mel2audio, 
-                            denoiser, 
-                            sentence, 
-                            speaker, 
-                            speed, 
-                            sampling_rate)
-            request['output'] = data
-        except:
-            request['output'] = "Fail"
-            continue
+        #     data = inference(cfg,
+        #                     configs[0],
+        #                     model_text2mel, 
+        #                     model_mel2audio, 
+        #                     denoiser, 
+        #                     sentence, 
+        #                     speaker, 
+        #                     speed, 
+        #                     sampling_rate)
+        #     request['output'] = data
+        # except:
+        #     request['output'] = "Fail"
+        #     continue
         
-#         sentence = texts[0]
-#         speaker = int(speakers[0])
-#         speed = speeds[0]
-#         sampling_rate = sampling_rates[0]
-#         request = requests_batch[0]
+        sentence = texts[0]
+        speaker = int(speakers[0])
+        speed = speeds[0]
+        sampling_rate = sampling_rates[0]
+        request = requests_batch[0]
 
-#         data = inference(cfg,
-#                         configs[0],
-#                         model_text2mel, 
-#                         model_mel2audio, 
-#                         None, 
-#                         sentence, 
-#                         speaker, 
-#                         speed, 
-#                         sampling_rate)
-#         request['output'] = data
+        data = inference(cfg,
+                        configs[0],
+                        model_text2mel, 
+                        model_mel2audio, 
+                        None, 
+                        sentence, 
+                        speaker, 
+                        speed, 
+                        sampling_rate)
+        request['output'] = data
 
 threading.Thread(target=handle_requests).start()
 
