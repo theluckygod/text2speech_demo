@@ -4,7 +4,7 @@ path:
   corpus_path: "../my_data"
   lexicon_path: "lexicon/my_data-lexicon.txt"
   raw_path: "../my_data/train"
-  preprocessed_path: "./preprocessed_data/my_data"
+  preprocessed_path: "./FastSpeech2/preprocessed_data/my_data"
 
 preprocessing:
   val_size: 512
