@@ -1,4 +1,4 @@
-# Demo text to speech with streamlit (tacotron2 + hifi-gan) on Vietnamese Dataset
+# Demo text to speech with streamlit (FastSpeech2 + hifi-gan) on Vietnamese Dataset
 
 ## Table of contents
 
@@ -10,7 +10,7 @@
 
 ## Introduction <a name="introduction"></a>
 
-This repo demo text to speech with streamlit (tacotron2 + hifi-gan) or [colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing)
+This repo demo text to speech with streamlit (FastSpeech2 + hifi-gan) or [colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing#scrollTo=HCszbfi1JIoE)
 
 ## Pretrain models <a name="models"></a>
 We use two pretrained models:
@@ -20,7 +20,7 @@ We use two pretrained models:
 
 ## Quick Start <a name="quickstart"></a>
 
-[Open in Colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing) or [Quick demo](https://colab.research.google.com/drive/1m-qkD2iQmv9o7gz5Fxx2Ok46okhGLjJQ?usp=sharing)
+[Open in Colab](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing#scrollTo=HCszbfi1JIoE) or [Quick demo](https://colab.research.google.com/drive/1h6oPgvswwTEqMDzSXEFi1qTIjyyQl0Er?usp=sharing#scrollTo=HCszbfi1JIoE)
 
 ## Run demo <a name="demo"></a>
 
