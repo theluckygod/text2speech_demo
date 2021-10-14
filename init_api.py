@@ -8,11 +8,11 @@ sys.path.append('./hifi-gan/')
 import numpy as np
 import torch
 
-from hparams import create_hparams
-from model import Tacotron2
-from layers import TacotronSTFT, STFT
+#from hparams import create_hparams
+#from model import Tacotron2
+#from layers import TacotronSTFT, STFT
 from audio_processing import griffin_lim
-from train import load_model as _load_model
+#from train import load_model as _load_model
 from text import text_to_sequence
 
 import glob
@@ -27,11 +27,15 @@ from meldataset import MAX_WAV_VALUE
 from models import Generator
 from inference_e2e import load_checkpoint
 
+from utils.model import get_model, get_vocoder
+
 from vinorm import TTSnorm
 from underthesea import sent_tokenize, dependency_parse
 import math
 
 import time
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 silence_sign = {
     '\n': 130,
@@ -42,9 +46,9 @@ silence_sign = {
 
 args = {
     'restore_step': 100000,
-    'preprocess_config': './config/my_data/preprocess.yaml',
-    'model_config': './config/my_data/model.yaml',
-    'train_config': './config/my_data/train.yaml',
+    'preprocess_config': './FastSpeech2/config/my_data/preprocess.yaml',
+    'model_config': './FastSpeech2/config/my_data/model.yaml',
+    'train_config': './FastSpeech2/config/my_data/train.yaml',
     'pitch_control': 1.0,
     'energy_control': 1.0
 }
@@ -57,18 +61,18 @@ def load_conf():
 def init(cfg):
     print("\n--------------------------------------------------")
     print("initting...")
-    hparams = create_hparams()
-    hparams.sampling_rate = cfg["conf_default"]["sampling_rate"]
-    print(hparams.n_symbols)
-    return hparams
+    #hparams = create_hparams()
+    #hparams.sampling_rate = cfg["conf_default"]["sampling_rate"]
+    #print(hparams.n_symbols)
+    #return hparams
 
 def prepare_model(args):
     # Read Config
     preprocess_config = yaml.load(
-        open(args['preprocess_config'], "r"), Loader=yaml.FullLoader
+        open(args['preprocess_config'], "r"), Loader=yaml.Loader
     )
-    model_config = yaml.load(open(args['model_config'], "r"), Loader=yaml.FullLoader)
-    train_config = yaml.load(open(args['train_config'], "r"), Loader=yaml.FullLoader)
+    model_config = yaml.load(open(args['model_config'], "r"), Loader=yaml.Loader)
+    train_config = yaml.load(open(args['train_config'], "r"), Loader=yaml.Loader)
     configs = (preprocess_config, model_config, train_config)
 
     # Get model
@@ -132,17 +136,27 @@ def load_model(cfg):
 
     return model_text2mel, model_mel2audio, denoiser
 
-def infer_text2mel(model_text2mel, text):
+def infer_text2mel(model_text2mel, speaker, sequence, src_lens, max_src_len, control_values):
     # preprocessing text
-    sequence = np.array(text_to_sequence(text, ['basic_cleaners']))[None, :]
+    pitch_control, energy_control, duration_control = control_values
     sequence = torch.autograd.Variable(
         torch.from_numpy(sequence)).cuda().long()
 
     # text2mel
-    start_time = time.time() 
-    mel_outputs, mel_outputs_postnet, _, alignments = model_text2mel.inference(sequence)
+    start_time = time.time()
+    with torch.no_grad():
+      output = model_text2mel(
+            speaker, 
+            sequence, 
+            src_lens, 
+            max_src_len, 
+            p_control=pitch_control,
+            e_control=energy_control,
+            d_control=duration_control)
+    
     print("--- text2mel: %s seconds ---" % (time.time() - start_time))
 
+    mel_outputs_postnet = output[1]
     return mel_outputs_postnet
 
 def infer_mel2audio(model_mel2audio, mel):
@@ -315,8 +329,6 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
       phones = re.sub(r"\{[^\w\s]?\}", "{sp}", phones)
       phones = phones.replace("}{", " ")
 
-      #print("Raw Text Sequence: {}".format(text))
-      #print("Phoneme Sequence: {}".format(phones))
       sequence = np.array(
           text_to_sequence(
               phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
@@ -326,13 +338,13 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
 
     return selected_sequences, si_mark
 
-def inference(cfg, model_text2mel, model_mel2audio, denoiser, text, accent, speed, sampling_rate):
+def inference(cfg, preprocess_config, model_text2mel, model_mel2audio, denoiser, text, speaker, speed, sampling_rate):
     print("\n--------------------------------------------------")
     print("inference...")
     print("input: " + text)
 
     start_time = time.time() 
-    texts, si_mark = text_preprocessing(cfg, text)
+    sequences, si_mark = preprocess_vietnamese(text, preprocess_config, cfg)
     print("--- preprocessing: %s seconds ---" % (time.time() - start_time))      
 
     # TODO
@@ -340,9 +352,11 @@ def inference(cfg, model_text2mel, model_mel2audio, denoiser, text, accent, spee
 
     # text2mel
     audio = None
-    for i in range(len(texts)):
+    control_values = args['pitch_control'], args['energy_control'], speed
+    for i in range(len(sequences)):
         print(f"text: {texts[i]}")
-        mel = infer_text2mel(model_text2mel, texts[i])
+        sequence_lens = np.array([len(sequences[i][0])])
+        mel = infer_text2mel(model_text2mel, speaker, sequences[i], sequence_lens, max(sequence_lens), control_values)
 
         # mel2audio
         if isinstance(audio, torch.Tensor):
