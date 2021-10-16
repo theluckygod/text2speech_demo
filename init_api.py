@@ -1,7 +1,6 @@
 import yaml
 
 import sys
-sys.path.append('./tacotron2/')
 sys.path.append('./FastSpeech2/')
 sys.path.append('./hifi-gan/')
 
@@ -15,11 +14,6 @@ from g2p_en import G2p
 from pypinyin import pinyin, Style
 from viphoneme import vi2IPA_split
 
-#from hparams import create_hparams
-#from model import Tacotron2
-#from layers import TacotronSTFT, STFT
-#from audio_processing import griffin_lim
-#from train import load_model as _load_model
 from FastSpeech2.text import text_to_sequence, my_viphoneme
 
 import glob
@@ -35,7 +29,7 @@ from models import Generator
 from inference_e2e import load_checkpoint
 
 from utils.model import get_model, get_vocoder
-from utils.tools import to_device
+from utils.tools import to_device, pad_1D, pad_2D
 
 from vinorm import TTSnorm
 from underthesea import sent_tokenize, dependency_parse
@@ -69,10 +63,6 @@ def load_conf():
 def init(cfg):
     print("\n--------------------------------------------------")
     print("initting...")
-    #hparams = create_hparams()
-    #hparams.sampling_rate = cfg["conf_default"]["sampling_rate"]
-    #print(hparams.n_symbols)
-    #return hparams
 
 def prepare_model(args):
     # Read Config
@@ -90,61 +80,7 @@ def prepare_model(args):
 
     return model, vocoder, configs
 
-def load_model_text2mel(cfg):
-    ## load model text2mel
-    checkpoint_path = cfg["conf_model"]["fastspeech2"]["checkpoint"]
-    hparams = init(cfg)
-    model_text2mel = _load_model(hparams)
-    model_text2mel.load_state_dict(torch.load(checkpoint_path)['state_dict'])
-    _ = model_text2mel.cuda().eval().half()
-    return model_text2mel
-def load_model_mel2audio(cfg):
-    ## load model mel2audio
-    checkpoint_path = cfg["conf_model"]["hifi-gan"]["checkpoint"]
-    config_file = cfg["conf_model"]["hifi-gan"]["config"]
-
-    with open(config_file) as f:
-        data = f.read()
-
-    json_config = json.loads(data)
-    h = AttrDict(json_config)
-
-    torch.manual_seed(h.seed)
-    assert(torch.cuda.is_available())
-    device = 'cuda'
-    torch.cuda.manual_seed(h.seed)
-
-    model_mel2audio = Generator(h).to(device)
-    state_dict_g = load_checkpoint(checkpoint_path, device)
-    model_mel2audio.load_state_dict(state_dict_g['generator'])
-    model_mel2audio.eval().half()
-    model_mel2audio.remove_weight_norm()
-
-    denoiser = None
-    return model_mel2audio, denoiser
-
-def load_model(cfg):
-    print("\n--------------------------------------------------")
-    print("load model...")
-
-    try:
-        model_text2mel = load_model_text2mel(cfg)
-    except:
-        print("--- fail to load model text2mel")
-        torch.cuda.empty_cache()
-        return
-    print("--- load model text2mel successfully")
-    try:
-        model_mel2audio, denoiser = load_model_mel2audio(cfg)
-    except:
-        print("--- fail to load model mel2audio")
-        torch.cuda.empty_cache()
-        return
-    print("--- load model mel2audio successfully")
-
-    return model_text2mel, model_mel2audio, denoiser
-
-def infer_text2mel(model_text2mel, speaker, sequence, src_lens, max_src_len, control_values):
+def infer_text2mel(preprocess_config, model_text2mel, speaker, sequence, src_lens, max_src_len, control_values):
     # preprocessing text
     pitch_control, energy_control, duration_control = control_values
     sequence = torch.autograd.Variable(
@@ -152,7 +88,7 @@ def infer_text2mel(model_text2mel, speaker, sequence, src_lens, max_src_len, con
 
     # text2mel
     start_time = time.time()
-    speaker = torch.from_numpy(np.array([speaker])).long().to(device)
+    speaker = torch.from_numpy(np.array(speaker)).long().to(device)
     sequence = sequence.long().to(device)
     src_lens = torch.from_numpy(src_lens).to(device)
     #max_src_len = to_device(max_src_len, device)
@@ -169,17 +105,18 @@ def infer_text2mel(model_text2mel, speaker, sequence, src_lens, max_src_len, con
     print("--- text2mel: %s seconds ---" % (time.time() - start_time))
 
     mel_outputs_postnet = output[1]
-    return mel_outputs_postnet
+    lengths = output[9] * preprocess_config["preprocessing"]["stft"]["hop_length"]
+    return mel_outputs_postnet, lengths
 
-def infer_mel2audio(model_mel2audio, mel):
+def infer_mel2audio(model_mel2audio, mels):
     with torch.no_grad():
-        if len(mel.shape) < 3:  # for mel from vivos
-            mel = mel.unsqueeze(0) 
+        if len(mels.shape) < 3:  # for mel from vivos
+            mels = mels.unsqueeze(0) 
         start_time = time.time() 
-        y_g_hat = model_mel2audio(mel)
+        y_g_hat = model_mel2audio(mels)
         print("--- mel2audio: %s seconds ---" % (time.time() - start_time))    
         audio = y_g_hat * MAX_WAV_VALUE
-
+          
     return audio
 
 def denoise_audio(denoiser, audio):
@@ -326,10 +263,11 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
     lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
     text_list, si_mark = text_preprocessing(cfg, text)
     selected_sequences = []
+    g2p = lambda s: my_viphoneme.get_my_viphoneme_list(my_viphoneme.get_cleaned_viphoneme_list(s))
+
     for sub_text in text_list:
       sub_text = sub_text.rstrip(punctuation)
 
-      g2p = lambda s: my_viphoneme.get_my_viphoneme_list(my_viphoneme.get_cleaned_viphoneme_list(s))
       phones = []
       words = re.split(r"([,;.\-\?\!\s+])", sub_text)
       for w in words:
@@ -346,7 +284,7 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
               phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
           )
       )
-      selected_sequences.append(np.array([sequence]))
+      selected_sequences.append(sequence)
 
     return selected_sequences, si_mark
 
@@ -367,25 +305,30 @@ def inference(cfg, preprocess_config, model_text2mel, model_mel2audio, denoiser,
     # text2mel
     audio = None
     control_values = args['pitch_control'], args['energy_control'], speed
-    for i in range(len(sequences)):
-        #print(f"text: {texts[i]}")
-        sequence_lens = np.array([len(sequences[i][0])])
-        mel = infer_text2mel(model_text2mel, speaker, sequences[i], sequence_lens, max(sequence_lens), control_values)
-        mel = mel.permute(0,2,1)
-        # mel2audio
-        if isinstance(audio, torch.Tensor):
-            #print(mel.shape)
-            temp_audio = infer_mel2audio(model_mel2audio, mel)
-            if si_mark[i] != '':
-                _si_audio = audio[:, :, -1].unsqueeze(-1)
-                _si_audio = _si_audio.repeat_interleave(silence_sign[si_mark[i]] * 256, dim=-1)
-                audio = torch.cat((audio, _si_audio, temp_audio), 2)
-            else:
-                audio = torch.cat((audio, temp_audio), 2)
 
+    # Infer batch
+    sequence_lens = np.array([len(sequences[i]) for i in range(len(sequences))])
+    sequences = pad_1D(sequences)
+    sequences = np.array(sequences)
+    speakers = [speaker] * len(sequences)
+    mels, lengths = infer_text2mel(preprocess_config, model_text2mel, speakers, sequences, sequence_lens, max(sequence_lens), control_values)
+    mels = mels.permute(0,2,1)
+
+    # mel2audio
+    temp_audio = infer_mel2audio(model_mel2audio, mels)
+    audio = temp_audio[0,:,:lengths[0]].unsqueeze(0)
+
+    # post-processing (concat audio)
+    start_time = time.time() 
+    for i in range(1, len(temp_audio)):
+        if si_mark[i] != '':
+            _si_audio = audio[:, :, -1].unsqueeze(-1)
+            _si_audio = _si_audio.repeat_interleave(silence_sign[si_mark[i]] * 256, dim=-1)
+            audio = torch.cat((audio, _si_audio, temp_audio[i,:,:lengths[i]].unsqueeze(0)), 2)
         else:
-            audio = infer_mel2audio(model_mel2audio, mel)
-
+            audio = torch.cat((audio, temp_audio[i,:,:lengths[i]].unsqueeze(0)), 2)
+    
     # denoise
     audio = denoise_audio(denoiser, audio)
+    print("--- post-processing: %s seconds ---" % (time.time() - start_time))
     return audio
