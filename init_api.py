@@ -314,7 +314,7 @@ def inference(args, cfg, preprocess_config, model_text2mel, model_mel2audio, den
     for i in range(1, len(temp_audio)):
         if si_mark[i] != '':
             _si_audio = audio[:, :, -1].unsqueeze(-1)
-            _si_audio = _si_audio.repeat_interleave(silence_sign[si_mark[i]] * 256, dim=-1)
+            _si_audio = _si_audio.repeat_interleave(silence_sign[si_mark[i]] * 256 * (sampling_rate/16000), dim=-1)
             audio = torch.cat((audio, _si_audio, temp_audio[i,:,:lengths[i]].unsqueeze(0)), 2)
         else:
             audio = torch.cat((audio, temp_audio[i,:,:lengths[i]].unsqueeze(0)), 2)
