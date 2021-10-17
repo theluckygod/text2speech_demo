@@ -46,15 +46,6 @@ silence_sign = {
     '': 0
 }
 
-args = {
-    'restore_step': 300000,
-    'preprocess_config': './FastSpeech2/config/my_data/preprocess.yaml',
-    'model_config': './FastSpeech2/config/my_data/model.yaml',
-    'train_config': './FastSpeech2/config/my_data/train.yaml',
-    'pitch_control': 1.0,
-    'energy_control': 1.0
-}
-
 def load_conf():
     with open("config.yml", "r", encoding="utf-8") as ymlfile:
         cfg = yaml.load(ymlfile, yaml.Loader)
@@ -288,7 +279,7 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
 
     return selected_sequences, si_mark
 
-def inference(cfg, preprocess_config, model_text2mel, model_mel2audio, denoiser, text, speaker, speed, sampling_rate):
+def inference(args, cfg, preprocess_config, model_text2mel, model_mel2audio, denoiser, text, speaker, speed, sampling_rate):
     print("\n--------------------------------------------------")
     print("inference...")
     print("input: " + text)
