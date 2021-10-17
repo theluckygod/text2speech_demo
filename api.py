@@ -10,7 +10,7 @@ import threading
 from queue import Empty, Queue
 
 args = {
-    'restore_step': 100000,
+    'restore_step': 300000,
     'preprocess_config': './FastSpeech2/config/my_data/preprocess.yaml',
     'model_config': './FastSpeech2/config/my_data/model.yaml',
     'train_config': './FastSpeech2/config/my_data/train.yaml',
