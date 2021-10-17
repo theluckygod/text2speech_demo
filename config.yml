@@ -1,5 +1,5 @@
 conf_nof_speaker:
-    fastspeech2: 56
+    fastspeech2: 1
     tacotron2: 46
     glowtts: 46
 
@@ -20,13 +20,13 @@ conf_values:
 conf_default:
     accent: Northern Accent
     speed: Normal
-    sampling_rate: 16000
+    sampling_rate: 22050
 
 conf_model:
     tacotron2: 
         checkpoint: ./tacotron2_checkpoints/checkpoint_53000
     fastspeech2: 
-        checkpoint: ./FastSpeech2/ckpt/100000.pth.tar
+        checkpoint: ./FastSpeech2/ckpt/300000.pth.tar
     hifi-gan: 
         checkpoint: ./hifi-gan_checkpoints/g_02520000
         config: ./hifi-gan_checkpoints/config.json
