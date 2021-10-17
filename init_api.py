@@ -40,7 +40,7 @@ import time
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 silence_sign = {
-    '\n': 130,
+    '\n': 90,
     '.': 60,
     ',': 30,
     '': 0
