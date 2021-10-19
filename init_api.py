@@ -11,13 +11,13 @@ from string import punctuation
 
 from underthesea.pipeline.word_tokenize import model
 from g2p_en import G2p
-from pypinyin import pinyin, Style
 from viphoneme import vi2IPA_split
 
 from FastSpeech2.text import text_to_sequence, my_viphoneme
 
 import glob
 import os
+import io
 import numpy as np
 import argparse
 import json
@@ -34,6 +34,7 @@ from utils.tools import to_device, pad_1D, pad_2D
 from vinorm import TTSnorm
 from underthesea import sent_tokenize, dependency_parse
 import math
+import wave
 
 import time
 
@@ -219,7 +220,7 @@ def split_long_sentence(cfg, text_list, silence_mark):
 
 def read_lexicon(lex_path):
     lexicon = {}
-    with open(lex_path) as f:
+    with open(lex_path, encoding="utf8") as f:
         for line in f:
             temp = re.split(r"\s+", line.strip("\n"))
             word = temp[0]
@@ -290,8 +291,8 @@ def inference(args, cfg, preprocess_config, model_text2mel, model_mel2audio, den
 
     # TODO
     # Accent, speed, sampling_rate?
-    flt_speed = {'Normal': 1.0, 'Slow': 1.5, 'Fast': 0.7}
-    speed = flt_speed[speed]
+    #flt_speed = {'Normal': 1.0, 'Slow': 1.5, 'Fast': 0.7}
+    #speed = flt_speed[speed]
 
     # text2mel
     audio = None
@@ -322,4 +323,16 @@ def inference(args, cfg, preprocess_config, model_text2mel, model_mel2audio, den
     # denoise
     audio = denoise_audio(denoiser, audio)
     print("--- post-processing: %s seconds ---" % (time.time() - start_time))
+    
+    # Read Binary Data of Wav file --> ignoring...
+    bytes_wav = bytes()
+    byte_io = io.BytesIO(bytes_wav)
+    write(byte_io, sampling_rate, np.array(audio, np.int16))
+    result_bytes = byte_io.read()
+
+    # write('output.wav', sampling_rate, np.array(audio, np.int16))
+    # w = wave.open("output.wav", "rb")
+    # binary_data = w.readframes(w.getnframes())
+    # w.close()
+
     return audio
