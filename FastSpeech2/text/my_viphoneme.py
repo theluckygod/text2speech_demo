@@ -4,6 +4,17 @@ consonants = ['tʰw', 'ŋ͡m', 'k͡p', 'cw', 'jw', 'bw', 'vw', 'ʈw', 'ʂw', 'fw
 vowels = ['oʊ', 'ɯəj', 'ɤ̆j', 'ʷiə', 'ɤ̆w', 'ɯəw', 'ʷet', 'iəw', 'uəj', 'ʷen', 'ʷɤ̆', 'ʷiu', 'kwi', 'uə', 'eə', 'oj', 'ʷi', 'ăw', 'aʊ', 'ɛu', 'ɔɪ', 'ʷɤ', 'ɤ̆', 'ʊə', 'zi', 'ʷă', 'eɪ', 'aɪ', 'ew', 'iə', 'ɯj', 'ʷɛ', 'ɯw', 'ɤj', 'ɔ:', 'əʊ', 'ʷa', 'ɑ:', 'ɔj', 'uj', 'ɪə', 'ăj', 'u:', 'aw', 'ɛj', 'iw', 'aj', 'ɜ:', 'eo', 'iɛ', 'ʷe', 'i:', 'ɯə', 'ʌ', 'ɪ', 'ɯ', 'ə', 'u', 'o', 'ă', 'æ', 'ɤ', 'i', 'ɒ', 'ɔ', 'ɛ', 'ʊ', 'a', 'e']
 tones = ['1', '3', '6', '2', '5', '4']
 en_to_vi = {'p': ['p'], 'b': ['b'], 't': ['t'], 'd': ['d'], 't∫': [u'tʃ'], 'ʧ': ['c'], 'dʒ': ['c'], 'ʤ': ['c'], 'k': ['k'], 'g': ['ɣ'], 'f': ['f'], 'v': ['v'], 'ð': ['d'], 'θ': ['tʰ'], 's': ['s'], 'z': ['j'], '∫': ['ʂ'], 'ʃ': ['ʂ'], 'ʒ': ['z'], 'm': ['m'], 'n': ['n'], 'η': ['ŋ'], 'l': ['l'], 'r': ['ʐ'], 'w': ['kw'], 'j': ['j'], 'ɪ': ['i1'], 'i:': ['i1'], 'ʊ': ['ɯə5', 'k'], 'u:': ['u'], 'e': ['ɛ'], 'ə': ['ɤ'], 'ɜ:': ['ɤ'], 'ɒ': ['ɔ'], 'ɔ:': ['o'], 'æ': ['a'], 'ʌ': ['ɤ̆1'], 'ɑ:': ['ɔ'], 'ɪə': ['iə'], 'ʊə': ['uə'], 'eə': ['ɛ'], 'eɪ': ['ă', 'j'], 'ɔɪ': ['o', 'j'], 'aɪ': ['a', 'j'], 'oʊ': ['ɤ̆', 'w'], 'aʊ': ['a', 'w']}
+Cus_codas = { u'p' : u'p', u't' : u't', u'c' : u'k', u'm' : u'm', u'n' : u'n', u'ng' : u'ŋ', u'nh' : u'ɲ', u'ch' : u'tʃ' }
+codas = Cus_codas.values()
+
+def normalize_phs(phs_list):
+    i = 0
+    while i < len(phs_list):
+      if phs_list[i] in codas:
+        while (i < len(phs_list) - 1) and phs_list[i+1] in codas:
+          del phs_list[i+1]
+      i+=1
+    return phs_list
 
 def vi2IPA_en2vi(sentence, delimit):
     vi_union_en = ['e', 'd', 'm', 'w', 'v', 'l', 't', 'b', 'n', 'j', 'f', 'k', 'z', 's', 'p', 'g']
@@ -12,20 +23,21 @@ def vi2IPA_en2vi(sentence, delimit):
    
     i = 0
     while i < len(phs):
-        
       # Check 2 vowel
       if (i < len(phs) - 1) and ((phs[i]+phs[i+1]) in ['ɪə', 'ʊə', 'eə', 'eɪ', 'ɔɪ', 'aɪ', 'oʊ', 'aʊ']):
         en_phoneme = phs[i]+phs[i+1]
         phs[i], phs[i+1] = en_to_vi[en_phoneme]
         i+=2
+
+        while i < len(phs) and (phs[i] != '\'' and phs[i] != '.' and phs[i] != '1' and phs[i] != '5'):
+          del phs[i]
         continue
       # Check 1 vowel
       if phs[i] in english_phoneme and phs[i] not in vi_union_en:
         phs[i] = en_to_vi[phs[i]][0]
 
       i+=1
-    
-    return phs
+    return normalize_phs(phs)
 
 def _is_concat_2_vowels(v1, v2):
     if v1 + v2 in vowels:
