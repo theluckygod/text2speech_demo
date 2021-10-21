@@ -3,6 +3,29 @@ from viphoneme import vi2IPA_split
 consonants = ['tʰw', 'ŋ͡m', 'k͡p', 'cw', 'jw', 'bw', 'vw', 'ʈw', 'ʂw', 'fw', 'tʰ', 'tʃ', 'xw', 'ŋw', 'dw', 'ɣw', 'zw', 'mw', 'hw', 'lw', 'kw', 'nw', 't∫', 'ɲw', 'sw', 'tw', 'ʐw', 'dʒ', 'ɲ', 'θ', 'l', 'w', 'd', '∫', 'p', 'ɣ', '!', 'ð', 'ʧ', 'ʒ', 'ʐ', 'z', 'v', 'g', '_', 'ʤ', '.', 'b', 'h', 'n', 'ʂ', 'k', 'm', ' ', 'c', 'j', 'x', 'ʈ', ',', 's', 'ŋ', 'ʃ', '?', 'r', ':', 'η', 'f', ';', 't', "'"]
 vowels = ['oʊ', 'ɯəj', 'ɤ̆j', 'ʷiə', 'ɤ̆w', 'ɯəw', 'ʷet', 'iəw', 'uəj', 'ʷen', 'ʷɤ̆', 'ʷiu', 'kwi', 'uə', 'eə', 'oj', 'ʷi', 'ăw', 'aʊ', 'ɛu', 'ɔɪ', 'ʷɤ', 'ɤ̆', 'ʊə', 'zi', 'ʷă', 'eɪ', 'aɪ', 'ew', 'iə', 'ɯj', 'ʷɛ', 'ɯw', 'ɤj', 'ɔ:', 'əʊ', 'ʷa', 'ɑ:', 'ɔj', 'uj', 'ɪə', 'ăj', 'u:', 'aw', 'ɛj', 'iw', 'aj', 'ɜ:', 'eo', 'iɛ', 'ʷe', 'i:', 'ɯə', 'ʌ', 'ɪ', 'ɯ', 'ə', 'u', 'o', 'ă', 'æ', 'ɤ', 'i', 'ɒ', 'ɔ', 'ɛ', 'ʊ', 'a', 'e']
 tones = ['1', '3', '6', '2', '5', '4']
+en_to_vi = {'p': ['p'], 'b': ['b'], 't': ['t'], 'd': ['d'], 't∫': [u'tʃ'], 'ʧ': ['c'], 'dʒ': ['c'], 'ʤ': ['c'], 'k': ['k'], 'g': ['ɣ'], 'f': ['f'], 'v': ['v'], 'ð': ['d'], 'θ': ['tʰ'], 's': ['s'], 'z': ['j'], '∫': ['ʂ'], 'ʃ': ['ʂ'], 'ʒ': ['z'], 'm': ['m'], 'n': ['n'], 'η': ['ŋ'], 'l': ['l'], 'r': ['ʐ'], 'w': ['kw'], 'j': ['j'], 'ɪ': ['i1'], 'i:': ['i1'], 'ʊ': ['ɯə5', 'k'], 'u:': ['u'], 'e': ['ɛ'], 'ə': ['ɤ'], 'ɜ:': ['ɤ'], 'ɒ': ['ɔ'], 'ɔ:': ['o'], 'æ': ['a'], 'ʌ': ['ɤ̆1'], 'ɑ:': ['ɔ'], 'ɪə': ['iə'], 'ʊə': ['uə'], 'eə': ['ɛ'], 'eɪ': ['ă', 'j'], 'ɔɪ': ['o', 'j'], 'aɪ': ['a', 'j'], 'oʊ': ['ɤ̆', 'w'], 'aʊ': ['a', 'w']}
+
+def vi2IPA_en2vi(sentence, delimit):
+    vi_union_en = ['e', 'd', 'm', 'w', 'v', 'l', 't', 'b', 'n', 'j', 'f', 'k', 'z', 's', 'p', 'g']
+    english_phoneme = en_to_vi.keys()
+    phs = vi2IPA_split(sentence, delimit)[:-9].split(delimit)
+   
+    i = 0
+    while i < len(phs):
+        
+      # Check 2 vowel
+      if (i < len(phs) - 1) and ((phs[i]+phs[i+1]) in ['ɪə', 'ʊə', 'eə', 'eɪ', 'ɔɪ', 'aɪ', 'oʊ', 'aʊ']):
+        en_phoneme = phs[i]+phs[i+1]
+        phs[i], phs[i+1] = en_to_vi[en_phoneme]
+        i+=2
+        continue
+      # Check 1 vowel
+      if phs[i] in english_phoneme and phs[i] not in vi_union_en:
+        phs[i] = en_to_vi[phs[i]][0]
+
+      i+=1
+    
+    return phs
 
 def _is_concat_2_vowels(v1, v2):
     if v1 + v2 in vowels:
@@ -62,7 +85,7 @@ def get_cleaned_viphoneme_list(sentence):
 
     #Returns:
     #   cleaned_ph (list): a list of phonemes which have been cleaned
-    cleaned_phs = vi2IPA_split(sentence, '/')[:-9].split('/')
+    cleaned_phs = vi2IPA_en2vi(sentence, '/')#[:-9].split('/')
     if len(cleaned_phs) > 0 and cleaned_phs[0] == '':
         cleaned_phs = cleaned_phs[1:]
     return cleaned_phs
