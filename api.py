@@ -13,7 +13,7 @@ import threading
 from queue import Empty, Queue
 
 args = {
-    'restore_step': 300000,
+    'restore_step': 660000,
     'preprocess_config': './FastSpeech2/config/my_data/preprocess.yaml',
     'model_config': './FastSpeech2/config/my_data/model.yaml',
     'train_config': './FastSpeech2/config/my_data/train.yaml',
@@ -155,7 +155,7 @@ class Inference_e2e(Resource):
 
         args = parser.parse_args()
         token, sentence, speaker, speed, sampling_rate = args['access-token'], args['text'], args['speaker_id'], args['rate'], args['sr']
-        print(speed)
+        
         abort_if_config_doesnt_exist(token, speaker, speed, sampling_rate)
 
         crequest = {'input': args, 'time': time.time()}
