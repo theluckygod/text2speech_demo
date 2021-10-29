@@ -69,7 +69,9 @@ if st.button("Generate"):
           # write array to file:
         #write(output_audio_path, response["sr"], np.array(response["data"], np.int16))
         #st.audio(output_audio_path, format='audio/wav')
-
+        with open(output_audio_path, 'wb') as f:
+          f.write(response.content)
+        st.audio(output_audio_path, format='audio/wav')
        # except:
         print("Cannot write audio file!!!")
     else:
