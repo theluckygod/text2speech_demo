@@ -1,0 +1,25 @@
+services:
+  tts_api:
+    build:
+      .
+    image: 
+      theluckygod/text2speech:latest
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    ports:
+      - 5010:5000
+    command: 
+      bash -c "python3 api.py"
+  # tts_web_demo:
+  #   build:
+  #     .
+  #   image: 
+  #     theluckygod/text2speech:latest
+  #   ports:
+  #     - 8510:8501
+  #   command: 
+  #     bash -c "streamlit run app.py"
+      

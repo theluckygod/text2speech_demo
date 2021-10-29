@@ -14,9 +14,9 @@ from queue import Empty, Queue
 
 args = {
     'restore_step': 660000,
-    'preprocess_config': './FastSpeech2/config/my_data/preprocess.yaml',
-    'model_config': './FastSpeech2/config/my_data/model.yaml',
-    'train_config': './FastSpeech2/config/my_data/train.yaml',
+    'preprocess_config': './FastSpeech2/config/vlsp_2021/preprocess.yaml',
+    'model_config': './FastSpeech2/config/vlsp_2021/model.yaml',
+    'train_config': './FastSpeech2/config/vlsp_2021/train.yaml',
     'pitch_control': 1.0,
     'energy_control': 1.0
 }
@@ -124,6 +124,8 @@ threading.Thread(target=handle_requests).start()
 
 # Todo
 class Login(Resource):
+    def get(self):
+        return {"data": {"Info": "Welcome!!"}}, 200 # infer successfully
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('email', required=True, help='Email')
@@ -145,6 +147,8 @@ class Login(Resource):
         return jsonify({"status": status, "result":{'access_token': access_token}})
 
 class Inference_e2e(Resource):
+    def get(self):
+        return {"data": {"Info": "Welcome!!"}}, 200 # infer successfully
     def post(self):
         parser = reqparse.RequestParser()
         parser.add_argument('access-token', help='Access Token', type=str, location='headers')
@@ -171,7 +175,7 @@ class Inference_e2e(Resource):
             
         data = data.tolist()
         write('output/output.wav', 22050, np.array(data, np.int16))
-        return send_from_directory('output', filename='output.wav', attachment_filename='output.wav', as_attachment=True)
+        return send_from_directory('output', path=".", filename='output.wav', attachment_filename='output.wav', as_attachment=True)
 
 
 ##
@@ -181,4 +185,4 @@ api.add_resource(Login, '/login')
 api.add_resource(Inference_e2e, '/tts')
 
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=False, host='0.0.0.0', port='5000')

@@ -1,40 +1,25 @@
 import yaml
 
 import sys
-sys.path.append('./FastSpeech2/')
-sys.path.append('./hifi-gan/')
+sys.path.append('.')
+sys.path.append('./FastSpeech2')
 
-import numpy as np
-import torch
 import re
 from string import punctuation
 
-from underthesea.pipeline.word_tokenize import model
-from g2p_en import G2p
-from viphoneme import vi2IPA_split
-
 from FastSpeech2.text import text_to_sequence, my_viphoneme
 
-import glob
-import os
 import io
 import numpy as np
-import argparse
-import json
 import torch
 from scipy.io.wavfile import write
-from env import AttrDict
-from meldataset import MAX_WAV_VALUE
-from models import Generator
-from inference_e2e import load_checkpoint
 
-from utils.model import get_model, get_vocoder
-from utils.tools import to_device, pad_1D, pad_2D
+from FastSpeech2.utils.model import get_model, get_vocoder
+from FastSpeech2.utils.tools import to_device, pad_1D, pad_2D
 
 from vinorm import TTSnorm
 from underthesea import sent_tokenize, dependency_parse
 import math
-import wave
 
 import time
 
@@ -46,6 +31,11 @@ silence_sign = {
     ',': 30,
     '': 0
 }
+
+def get_dummy_module():
+    class dummy:
+        pass
+    return dummy()
 
 def load_conf():
     with open("config.yml", "r", encoding="utf-8") as ymlfile:
@@ -66,7 +56,9 @@ def prepare_model(args):
     configs = (preprocess_config, model_config, train_config)
 
     # Get model
-    model = get_model(args['restore_step'], configs, device, train=False)
+    module_args = get_dummy_module()
+    module_args.restore_step = args["restore_step"]
+    model = get_model(module_args, configs, device, train=False)
     # Load vocoder
     vocoder = get_vocoder(model_config, device)
 
@@ -100,14 +92,14 @@ def infer_text2mel(preprocess_config, model_text2mel, speaker, sequence, src_len
     lengths = output[9] * preprocess_config["preprocessing"]["stft"]["hop_length"]
     return mel_outputs_postnet, lengths
 
-def infer_mel2audio(model_mel2audio, mels):
+def infer_mel2audio(model_mel2audio, mels, max_wav_value=32767.0):
     with torch.no_grad():
         if len(mels.shape) < 3:  # for mel from vivos
             mels = mels.unsqueeze(0) 
         start_time = time.time() 
         y_g_hat = model_mel2audio(mels)
         print("--- mel2audio: %s seconds ---" % (time.time() - start_time))    
-        audio = y_g_hat * MAX_WAV_VALUE
+        audio = y_g_hat * max_wav_value
           
     return audio
 
@@ -137,12 +129,12 @@ def norm_begin_end_text(text_list, silence_mark):
     for i in range(len(text_list)):
         text = text_list[i]
         while True:
-            if len(text) > 0 and text[-1] in ['.', ',', ' ', '\n']:
+            if len(text) > 0 and text[-1] in silence_sign.keys():
                 text = text[:-1]
             else:
                 break
         while True:
-            if len(text) > 0 and text[0] in ['.', ',', ' ', '\n']:
+            if len(text) > 0 and text[0] in silence_sign.keys():
                 text = text[1:]
             else:
                 break
@@ -307,7 +299,8 @@ def inference(args, cfg, preprocess_config, model_text2mel, model_mel2audio, den
     mels = mels.permute(0,2,1)
 
     # mel2audio
-    temp_audio = infer_mel2audio(model_mel2audio, mels)
+    temp_audio = infer_mel2audio(model_mel2audio, mels, \
+                            preprocess_config["preprocessing"]["audio"]["max_wav_value"])
     audio = temp_audio[0,:,:lengths[0]].unsqueeze(0)
 
     # post-processing (concat audio)
