@@ -8,7 +8,9 @@ import numpy as np
 import io
 import json
 
+import os
 import time
+import random
 import threading
 from queue import Empty, Queue
 
@@ -107,17 +109,21 @@ def handle_requests():
         sampling_rate = sampling_rates[0]
         request = requests_batch[0]
 
-        data = inference(args,
-                        cfg,
-                        configs[0],
-                        model_text2mel, 
-                        model_mel2audio, 
-                        None, 
-                        sentence, 
-                        speaker, 
-                        speed, 
-                        sampling_rate)
-        request['output'] = data
+        try:
+            data = inference(args,
+                            cfg,
+                            configs[0],
+                            model_text2mel, 
+                            model_mel2audio, 
+                            None, 
+                            sentence, 
+                            speaker, 
+                            speed, 
+                            sampling_rate)
+            request['output'] = data
+        except:
+            print("Somethings wrong!!!")
+            request['output'] = "Fail"
 
 threading.Thread(target=handle_requests).start()
 
@@ -174,8 +180,11 @@ class Inference_e2e(Resource):
             return abort(403, message='Fauty Inference!') # Fail to infer
             
         data = data.tolist()
-        write('output/output.wav', 22050, np.array(data, np.int16))
-        return send_from_directory('output', path=".", filename='output.wav', attachment_filename='output.wav', as_attachment=True)
+        
+        directory="output"
+        filename = f'{time.time()}.{str(random.random())[-5:]}.wav'
+        write(os.path.join(directory, filename), 22050, np.array(data, np.int16))
+        return send_from_directory(directory, path='.', filename=filename, as_attachment=True)
 
 
 ##

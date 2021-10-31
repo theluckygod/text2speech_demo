@@ -27,7 +27,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 silence_sign = {
     '\n': 60,
-    '.': 50,
+    '.': 45,
     ',': 30,
     '': 0
 }
@@ -176,18 +176,18 @@ def segment_sentence(text, factor):
     return s
 
 def split_long_sentence(cfg, text_list, silence_mark):
-    # puntc ,
-    selected_texts = []
-    si_mark = []
-    for i in range(len(text_list)):
-        t_texts, t_mark = split_sentence_with_character(text_list[i], ',')
-        t_mark = [silence_mark[i]] + t_mark
+    # puntc , # ingnore puntc
+    # selected_texts = []
+    # si_mark = []
+    # for i in range(len(text_list)):
+    #     t_texts, t_mark = split_sentence_with_character(text_list[i], ',')
+    #     t_mark = [silence_mark[i]] + t_mark
 
-        selected_texts = selected_texts + t_texts
-        si_mark = si_mark + t_mark
+    #     selected_texts = selected_texts + t_texts
+    #     si_mark = si_mark + t_mark
 
-    text_list = selected_texts
-    silence_mark = si_mark
+    # text_list = selected_texts
+    # silence_mark = si_mark
     selected_texts = []
     si_mark = []
     max_len = cfg["conf_model"]["text_preprocessing"]["max_len_sentence"]
@@ -207,7 +207,6 @@ def split_long_sentence(cfg, text_list, silence_mark):
             selected_texts.append(text_list[i])
             si_mark.append(silence_mark[i])
 
-    dependency_parse
     return selected_texts, si_mark
 
 def read_lexicon(lex_path):
@@ -229,7 +228,7 @@ def text_preprocessing(cfg, text):
     text_list, silence_mark = sentence_segmentation(text_list, silence_mark)
     
     # split long sentance
-    text_list, silence_mark = split_long_sentence(cfg, text_list, silence_mark)
+    # text_list, silence_mark = split_long_sentence(cfg, text_list, silence_mark)
 
     # norm
     text_list = norm_text(text_list)
@@ -250,25 +249,31 @@ def preprocess_vietnamese(text, preprocess_config, cfg):
     g2p = lambda s: my_viphoneme.get_my_viphoneme_list(my_viphoneme.get_cleaned_viphoneme_list(s))
 
     for sub_text in text_list:
-      sub_text = sub_text.rstrip(punctuation)
+        sub_text = sub_text.rstrip(punctuation)
 
-      phones = []
-      words = re.split(r"([,;.\-\?\!\s+])", sub_text)
-      for w in words:
-          if w.lower() in lexicon:
-              phones += lexicon[w.lower()]
-          else:
-              phones += list(filter(lambda p: p != "", g2p(w)))
-      phones = "{" + "}{".join(phones) + "}"
-      phones = re.sub(r"\{[^\w\s]?\}", "{sp}", phones)
-      phones = phones.replace("}{", " ")
+        phones = []
+        words = re.split(r"([,;.\-\?\!\s+])", sub_text)
 
-      sequence = np.array(
-          text_to_sequence(
-              phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
-          )
-      )
-      selected_sequences.append(sequence)
+        for w in words:
+            if w == '' or w == ' ':
+                continue
+            elif w.lower() in lexicon:
+                phones += lexicon[w.lower()]
+            elif w == ',':
+                phones += ['sp', 'sp']
+            else:
+                phones += list(filter(lambda p: p != "", g2p(w)))
+
+        phones = "{" + "}{".join(phones) + "}"
+        phones = re.sub(r"\{[^\w\s]?\}", "{sp}", phones)
+        phones = phones.replace("}{", " ")
+
+        sequence = np.array(
+            text_to_sequence(
+                phones, preprocess_config["preprocessing"]["text"]["text_cleaners"]
+            )
+        )
+        selected_sequences.append(sequence)
 
     return selected_sequences, si_mark
 
@@ -308,7 +313,7 @@ def inference(args, cfg, preprocess_config, model_text2mel, model_mel2audio, den
     for i in range(1, len(temp_audio)):
         if si_mark[i] != '':
             _si_audio = audio[:, :, -1].unsqueeze(-1)
-            _si_audio = _si_audio.repeat_interleave(int(silence_sign[si_mark[i]] * (sampling_rate/16000)) * 256, dim=-1)
+            _si_audio = _si_audio.repeat_interleave(int(silence_sign[si_mark[i]] * (sampling_rate/16000) * speed) * 256, dim=-1)
             audio = torch.cat((audio, _si_audio, temp_audio[i,:,:lengths[i]].unsqueeze(0)), 2)
         else:
             audio = torch.cat((audio, temp_audio[i,:,:lengths[i]].unsqueeze(0)), 2)

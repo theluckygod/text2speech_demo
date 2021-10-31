@@ -49,10 +49,17 @@ sentence = st.text_area(label='Input your text here:',
                         height=max_height_text_area)
         
 if st.button("Generate"):
-    data = {'text': sentence}
+    if speed == "Normal":
+        speed = 1.0
+    elif speed == "Slow":
+        speed = 1.3
+    elif speed == "Fast":
+        speed = 0.9
+
+    data = {'text': sentence, 'rate': speed, 'sr': sampling_rate}
     print("\n------------------------------------")
     print(f"POST {data}")
-    data1 = {'email': 'admin@vlsp.com.vn', 'password': 'admin1'}
+    # data_login = {'email': 'admin@vlsp.com.vn', 'password': 'admin'}
     header = {"Content-type": 'application/json', "access_token": VALID_TOKEN}
 
     is_reponse = False
